@@ -1,4 +1,4 @@
-# This is to do rotation of 3D Magnetic Domains from the reconstruction
+# This is to do rotation of 3D Magnetic Domains from the reconstruction of the 5.4 micron NFB cylindrical sample.
 import numpy as np
 from imageio import imread, imwrite
 import matplotlib.pyplot as plt
