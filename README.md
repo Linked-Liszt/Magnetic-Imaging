@@ -11,4 +11,4 @@ The 3D magnetization domains are then rotated in the direction of maximum contra
 
 Finally, the scalar reconstruction of the object is done also in Tomopy, using only one tilt orientation. Subsequently, this 3D scalar magnetization is rotated appropriately around the y-axis and x-axis successively. Based on this rotated scalar reconstruction, the 3D vector magnetization of the object only is isolated. This is in rotate_scal_3Dobj_thresh.py for the 5.4 micron NFB sample.
 
-Using these magnetization vectors in 3D, the vector field visualization is done in Paraview. The Paraview Visualization files are in pv_files_viz.zip for the 2.1 micron NFB sample. 
+Using these magnetization vectors in 3D, the vector field visualization is done in Paraview.
