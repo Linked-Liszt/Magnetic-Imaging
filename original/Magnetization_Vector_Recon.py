@@ -26,18 +26,33 @@ corresponding to the left circular (CL) and right circular (CR) polarized X-rays
 appropriately scaled.
 
 The projections are appropriately padded using np.pad() to make the array size same.
+
+# 
+
+
+
 '''
+
+
+
+
 def prep_projs(base, proc):
     # 0002_tomogram1
     prjl = np.load(base + '0002_tomogram1-stxm_cl-150-cor.npy')
     prjr = np.load(base + '0002_tomogram1-stxm_cr-150-cor.npy')
     ang = np.load(base + '0002_tomogram1-ang-150.npy')
+
+    #load 1
+
     dxchange.write_tiff(prjl, proc + 'raw/tif/0002_tomogram1-stxm_cl-150-cor', overwrite=True)
     dxchange.write_tiff(prjr, proc + 'raw/tif/0002_tomogram1-stxm_cr-150-cor', overwrite=True)
     dxchange.write_tiff(ang, proc + 'raw/tif/0002_tomogram1-ang-150-cor', overwrite=True)
     np.save(proc + 'raw/npy/0002_tomogram1-stxm_cl-150-cor.npy', prjl)
     np.save(proc + 'raw/npy/0002_tomogram1-stxm_cr-150-cor.npy', prjr)
     np.save(proc + 'raw/npy/0002_tomogram1-ang-150-cor.npy', ang)
+
+    # save 1
+
     prjl = tomopy.normalize_bg(prjl)
     prjl = tomopy.minus_log(prjl)
     prjr = tomopy.normalize_bg(prjr)
@@ -45,6 +60,9 @@ def prep_projs(base, proc):
     npad = ((0, 0), (0, 0), (40, 40))
     prjl = np.pad(prjl, npad, mode='constant', constant_values=0)
     prjr = np.pad(prjr, npad, mode='constant', constant_values=0)
+
+    # norm pad 1
+
     dxchange.write_tiff(prjl, proc + 'prepared/tif/0002_tomogram1-stxm_cl-150-cor', overwrite=True)
     dxchange.write_tiff(prjr, proc + 'prepared/tif/0002_tomogram1-stxm_cr-150-cor', overwrite=True)
     dxchange.write_tiff(ang, proc + 'prepared/tif/0002_tomogram1-ang-150-cor', overwrite=True)
@@ -52,10 +70,14 @@ def prep_projs(base, proc):
     np.save(proc + 'prepared/npy/0002_tomogram1-stxm_cr-150-cor.npy', prjr)
     np.save(proc + 'prepared/npy/0002_tomogram1-ang-150-cor.npy', ang)
 
+    # write 1
+
     # 0004_tomogram2
     prjl = np.load(base + '0004_tomogram2-stxm_cl-50-cor.npy')
     prjr = np.load(base + '0004_tomogram2-stxm_cr-50-cor.npy')
     ang = np.load(base + '0004_tomogram2-ang-50.npy')
+
+    #load 2 
     dxchange.write_tiff(prjl, proc + 'raw/tif/0004_tomogram2-stxm_cl-50-cor', overwrite=True)
     dxchange.write_tiff(prjr, proc + 'raw/tif/0004_tomogram2-stxm_cr-50-cor', overwrite=True)
     dxchange.write_tiff(ang, proc + 'raw/tif/0004_tomogram2-ang-50-cor', overwrite=True)
@@ -77,12 +99,15 @@ def prep_projs(base, proc):
     prjl = np.load(base + '0007_tomogram3-stxm_cl-135.npy')
     prjr = np.load(base + '0007_tomogram3-stxm_cr-135.npy')
     ang = np.load(base + '0007_tomogram3-ang-135.npy')
+    #load 3
     dxchange.write_tiff(prjl, proc + 'raw/tif/0007_tomogram3-stxm_cl-135-cor', overwrite=True)
     dxchange.write_tiff(prjr, proc + 'raw/tif/0007_tomogram3-stxm_cr-135-cor', overwrite=True)
     dxchange.write_tiff(ang, proc + 'raw/tif/0007_tomogram3-ang-135-cor', overwrite=True)
     np.save(proc + 'raw/npy/0007_tomogram3-stxm_cl-135-cor.npy', prjl)
     np.save(proc + 'raw/npy/0007_tomogram3-stxm_cr-135-cor.npy', prjr)
     np.save(proc + 'raw/npy/0007_tomogram3-ang-135-cor.npy', ang)
+    #save
+
     scl = np.max(prjl[0])
     prjl = prjl / scl
     prjr = prjr / scl
@@ -95,6 +120,9 @@ def prep_projs(base, proc):
     npad = ((0, 0), (10, 0), (15, 15))
     prjl = np.pad(prjl, npad, mode='constant', constant_values=0)
     prjr = np.pad(prjr, npad, mode='constant', constant_values=0)
+
+    # save
+
     dxchange.write_tiff(prjl, proc + 'prepared/tif/0007_tomogram3-stxm_cl-135-cor', overwrite=True)
     dxchange.write_tiff(prjr, proc + 'prepared/tif/0007_tomogram3-stxm_cr-135-cor', overwrite=True)
     dxchange.write_tiff(ang, proc + 'prepared/tif/0007_tomogram3-ang-135-cor', overwrite=True)
@@ -106,15 +134,21 @@ def prep_projs(base, proc):
     prjl = np.load(base + '0008_tomogram4-stxm_cl-178.npy') #17
     prjr = np.load(base + '0008_tomogram4-stxm_cr-178.npy') # 16 80
     ang = np.load(base + '0008_tomogram4-ang-178.npy')
+    
     prjl = np.delete(prjl, [15, 16, 79], axis=0)
     prjr = np.delete(prjr, [15, 16, 79], axis=0)
     ang = np.delete(ang, [15, 16, 79], axis=0)
+
+    # load 4
+
     dxchange.write_tiff(prjl, proc + 'raw/tif/0008_tomogram4-stxm_cl-175-cor', overwrite=True)
     dxchange.write_tiff(prjr, proc + 'raw/tif/0008_tomogram4-stxm_cr-175-cor', overwrite=True)
     dxchange.write_tiff(ang, proc + 'raw/tif/0008_tomogram4-ang-175-cor', overwrite=True)
     np.save(proc + 'raw/npy/0008_tomogram4-stxm_cl-175-cor.npy', prjl)
     np.save(proc + 'raw/npy/0008_tomogram4-stxm_cr-175-cor.npy', prjr)
     np.save(proc + 'raw/npy/0008_tomogram4-ang-175-cor.npy', ang)
+
+    #save 4
     prjl = prjl / scl
     prjr = prjr / scl
     prjl[prjl > 1] = 0.995
