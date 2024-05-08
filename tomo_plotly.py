@@ -8,6 +8,7 @@ import plotly.express as px
 import numpy as np
 import tomopy
 from dataclasses import dataclass
+import ui_shared
 
 # Assume images are numpy arrays
 dbc_css = "https://cdn.jsdelivr.net/gh/AnnMarieW/dash-bootstrap-templates/dbc.min.css"
@@ -27,26 +28,21 @@ images_1_r = np.load(base + '0002_tomogram1-stxm_cr-150-cor.npy')
 images_2_l = np.load(base + '0004_tomogram2-stxm_cl-50-cor.npy')
 images_2_r = np.load(base + '0004_tomogram2-stxm_cr-50-cor.npy')
 
-images_3_l = np.load(base + '0007_tomogram3-stxm_cl-135.npy')
-images_3_r = np.load(base + '0007_tomogram3-stxm_cr-135.npy')
-
-images_4_l = np.load(base + '0008_tomogram4-stxm_cl-178.npy')
-images_4_r = np.load(base + '0008_tomogram4-stxm_cr-178.npy')
-
 @dataclass
 class ReconState:
     norm: bool
     scale: bool
     scale_factor: float
+    clip: bool
 
 STATE = {
     'curr_im':'load_1',
     'states':{
-        'load_1': ReconState(False, False, 0.9),
-        'load_2': ReconState(False, False, 0.9),
-        'load_3': ReconState(False, False, 0.9),
-        'load_4': ReconState(False, False, 0.9),
-    }
+        'load_1': ReconState(False, False, 0.9, False),
+        'load_2': ReconState(False, False, 0.9, False),
+    },
+    'aligned': None,
+    'reconstruction': None
 }
 
 
@@ -56,20 +52,6 @@ UI Components
 =================================
 """
 
-navbar = dbc.NavbarSimple(
-    children=[
-        dbc.NavItem(dbc.NavLink("Data Import", href="/", active=True)),
-        dbc.NavItem(dbc.NavLink("Reconstruction", href="/reconstruction")),
-        dbc.NavItem(dbc.NavLink("Visualization", href="#")),
-
-    ],
-    brand="Magnetic Tomo Reconstruction",
-    brand_href="/",
-    color="primary",
-    className="navbar-expand-lg",
-    dark=True,
-    style={"max-height": "50px"},
-)
 
 accordian = [
     dbc.Accordion(
@@ -80,7 +62,7 @@ accordian = [
                     dbc.Button("Load", id='demo_1', disabled=True),
                     dbc.Button("Display", id='load_1'),
                 ],
-                title="Projections 1",
+                title="Projections Tilt 1",
             ),
             dbc.AccordionItem(
                 [
@@ -88,23 +70,7 @@ accordian = [
                     dbc.Button("Load", id='demo_2', disabled=True),
                     dbc.Button("Display", id='load_2'),
                 ],
-                title="Projections 2",
-            ),
-            dbc.AccordionItem(
-                [
-                    dbc.Input(id='tomo_3', value='0007_tomogram3-stxm_cl-135.npy'),
-                    dbc.Button("Load", id='demo_3', disabled=True),
-                    dbc.Button("Display", id='load_3'),
-                ],
-                title="Projections 3",
-            ),
-            dbc.AccordionItem(
-                [
-                    dbc.Input(id='tomo_4', value='0008_tomogram4-stxm_cl-178.npy'),
-                    dbc.Button("Load", id='demo_4', disabled=True),
-                    dbc.Button("Display", id='load_4'),
-                ],
-                title="Projections 4",
+                title="Projections Tilt 2",
             ),
         ],
     )
@@ -135,7 +101,7 @@ display_control = [
 # Add a Plotly graph and a slider to the application layout
 load_layout = dbc.Container(
     [html.Div([
-        navbar,
+        ui_shared.navbar,
     dbc.Row(
         [
             dbc.Col(accordian, width=3),
@@ -150,18 +116,60 @@ load_layout = dbc.Container(
 )
 
 
-recon_layout = dbc.Container(
+alignment_layout = dbc.Container(
     [html.Div([
-        navbar,
-        html.H1("Reconstruction"),
-        dbc.Button("Align (TODO)", id='align'),
-        dcc.Graph(id='recon', style={'width': '50%'}),
+        ui_shared.navbar,
+        html.H1("Alignment"),
+        html.Div([
+            html.Div([
+                dbc.Button("Align Tilt 1", id='align-btn-1'),
+                dcc.Graph(id='align-image-1'),
+                dcc.Slider(
+                    id='alignment-slider-1',
+                    min=0,
+                    max=0,
+                    value=0,
+                    step=1,
+                    ),
+            ], style={'width':'50%'}),
+            html.Div([
+                dbc.Button("Align Tilt 2", id='align-btn-2'),
+                dcc.Graph(id='align-image-2'),
+                dcc.Slider(
+                    id='alignment-slider-2',
+                    min=0,
+                    max=0,
+                    value=0,
+                    step=1,
+                ),
+            ], style={'width':'50%'})
+        ], style={'display': 'flex'}),
     ],
     )
     ],
     className='dbc', 
     fluid=True
 )
+
+reconstruction_layout = dbc.Container(
+    [html.Div([
+        ui_shared.navbar,
+        html.H1("Reconstruction"),
+        dbc.Button("Recon", id='recon-btn'),
+        dcc.Graph(id='recon-display'),
+        dcc.Slider(
+            id='recon-slider',
+            min=0,
+            max=0,
+            value=0,
+            step=1,
+        ),
+    ],
+    )
+    ],
+    className='dbc', 
+    fluid=True
+) 
 
 """
 =================================
@@ -171,30 +179,54 @@ Callbacks
 
 # Define a callback that changes the image displayed in the graph when the slider value changes
 @app.callback(
-    [Output('image', 'figure'), Output('processed-image', 'figure'), Output('image-slider', 'max'), Output('image-slider', 'marks')],
+    [Output('image', 'figure'), Output('processed-image', 'figure'), Output('image-slider', 'max'), Output('image-slider', 'marks'), 
+     Output('norm', 'value'), Output('scale', 'value'), Output('scale_factor', 'value'), Output('clip', 'value')],
     [Input('image-slider', 'value'), Input('norm', 'value'), Input('scale', 'value'), Input('scale_factor', 'value'), Input('clip', 'value'),
-     Input('load_1', 'n_clicks'), Input('load_2', 'n_clicks'), Input('load_3', 'n_clicks'), Input('load_4', 'n_clicks')]
+     Input('load_1', 'n_clicks'), Input('load_2', 'n_clicks')]
 )
 def update_image(slider_value, norm, scale, scale_factor, clip,
-                 load_1, load_2, load_3, load_4):
+                 load_1, load_2):
     global STATE
 
+
+    # Handle local statefulness
+    norm_state = dash.no_update
+    scale_state = dash.no_update
+    scale_factor_state = dash.no_update
+    clip_state = dash.no_update
+
     if ctx.triggered_id in STATE['states'].keys():
+
+        #Save states
+        STATE['states'][STATE['curr_im']].norm = norm
+        STATE['states'][STATE['curr_im']].scale = scale
+        STATE['states'][STATE['curr_im']].scale_factor = scale_factor
+        STATE['states'][STATE['curr_im']].clip = clip
+
+        print(STATE['states'][STATE['curr_im']])
+
+        print(STATE['curr_im'])
+        print(ctx.triggered_id)
+
         STATE['curr_im'] = ctx.triggered_id
+
+        # Load new states
+        norm_state = STATE['states'][STATE['curr_im']].norm
+        scale_state = STATE['states'][STATE['curr_im']].scale
+        scale_factor_state = STATE['states'][STATE['curr_im']].scale_factor
+        clip_state = STATE['states'][STATE['curr_im']].clip
+
 
     if "load_1" == STATE['curr_im']:
         images = np.concatenate((images_1_l, images_1_r), axis=2)
     elif "load_2" == STATE['curr_im']:
         images = np.concatenate((images_2_l, images_2_r), axis=2)
-    elif "load_3" == STATE['curr_im']:
-        images = np.concatenate((images_3_l, images_3_r), axis=2)
-    elif "load_4" == STATE['curr_im']:
-        images = np.concatenate((images_4_l, images_4_r), axis=2)
 
     STATE['states'][STATE['curr_im']].norm = norm
     STATE['states'][STATE['curr_im']].norm = scale
     STATE['states'][STATE['curr_im']].norm = scale_factor
 
+    # Preprocess the image
     processed_image = np.copy(images[slider_value])
 
     if scale:
@@ -222,17 +254,25 @@ def update_image(slider_value, norm, scale, scale_factor, clip,
     max_slider = len(images) - 1
     marks = {i: str(i) for i in range(0, len(images), 50)}
     marks[len(images) - 1] = str(len(images) - 1)
-    
-    return original_figure, processed_figure, max_slider, marks
 
+
+    return (original_figure, processed_figure, max_slider, marks, 
+            norm_state, scale_state, scale_factor_state, clip_state)
+
+"""
+===========================
+Callbacks Align
+===========================
+"""
 
 @app.callback(
-    [Output('recon', 'figure')],
-    [Input('align', 'n_clicks')],
+    [Output('align-display', 'figure', allow_duplicate=True)],
+    [Input('align-btn', 'n_clicks')],
     prevent_initial_call=True,
-    running=[(Output("align", "disabled"), True, False)]
+    running=[(Output("align-btn", "disabled"), True, False)]
 )
 def do_recon(n_clicks):
+    print('gothere')
     global STATE
     if n_clicks is None:
         # Button has not been clicked yet, don't do anything
@@ -250,16 +290,85 @@ def do_recon(n_clicks):
             upsample_factor=100, rin=0.5, rout=0.8,
             save=False, debug=True)
     print('Finished')
+    STATE['aligned'] = prj
     processed_figure = px.imshow(prj[0], color_continuous_scale='gray', title='Preprocessed Image')
-    return processed_figure
+    return (processed_figure,)
+
+
+@app.callback(
+    [Output('align-display', 'figure')],
+    [Input('alignment-slider', 'value')],
+    prevent_initial_call=True
+)
+def update_align_image(slider_value):
+    global STATE
+    if STATE['aligned'] is None:
+        return dash.no_update
+    elif len(STATE['aligned']) < slider_value:
+        return dash.no_update
+
+    original_figure = px.imshow(STATE['aligned'][slider_value], color_continuous_scale='gray', title='Original Image')
+    return (original_figure,)
+
+"""
+=============
+Recon Callbacks
+=============
+"""
+@app.callback(
+    [Output('recon-display', 'figure', allow_duplicate=True)],
+    [Input('recon-btn', 'n_clicks')],
+    prevent_initial_call=True,
+    running=[(Output("recon-btn", "disabled"), True, False)]
+)
+def do_recon(n_clicks):
+    global STATE
+    if n_clicks is None:
+        # Button has not been clicked yet, don't do anything
+        return dash.no_update
+
+    ang = np.load(base + '0002_tomogram1-ang-150.npy')
+
+    print(len(ang))
+    recl = tomopy.recon(STATE['aligned'][:150], ang, algorithm='gridrec')
+    print('Finished')
+    STATE['reconstruction'] = recl
+    processed_figure = px.imshow(recl[0], color_continuous_scale='gray', title='Preprocessed Image')
+    return (processed_figure,)
+
+
+@app.callback(
+    [Output('recon-display', 'figure')],
+    [Input('recon-slider', 'value')],
+    prevent_initial_call=True
+)
+def update_recon_image(slider_value):
+    global STATE
+    if STATE['reconstruction'] is None:
+        return dash.no_update
+    elif len(STATE['reconstruction']) < slider_value:
+        return dash.no_update
+
+    original_figure = px.imshow(STATE['reconstruction'][slider_value], color_continuous_scale='gray', title='Original Image')
+    return (original_figure,)
+
+
+
+"""
+================
+Multi-page Callbacks
+================
+"""
 
 # Update the index
 @app.callback(Output('page-content', 'children'), Input('url', 'pathname'))
 def display_page(pathname):
     if pathname == '/':
         return load_layout
+    elif pathname == '/alignment':
+        return alignment_layout
     elif pathname == '/reconstruction':
-        return recon_layout
+        return reconstruction_layout
 
     #else:
     #    return index_page
